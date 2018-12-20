@@ -223,6 +223,8 @@ void loop() {
          radio.startListening();
          simple_output("Reception mode");
          
+      } else if (c == 'S') {
+         ESP.reset()
       }
   }
 } // Loop
