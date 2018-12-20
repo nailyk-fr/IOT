@@ -7,12 +7,28 @@
 #define CE_PIN 2
 #define CSN_PIN 15
 
+
+#define SSD1306_128_64
+
+
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define OLED_RESET LED_BUILTIN  //4
+Adafruit_SSD1306 display(OLED_RESET);
+
+
+#if ! defined(SSD1306_LCDHEIGHT)
+#error("Height incorrect, please fix Adafruit_SSD1306.h!");
+#endif
+
 /*
 * Getting Started example sketch for nRF24L01+ radios
 * This is a very basic example of how to send data from one node to another
 * Updated: Dec 2014 by TMRh20
 */
-#include <SPI.h>
 
 #include <nRF24L01.h>
 #include <RF24_config.h>
@@ -53,6 +69,15 @@ void setup() {
 
   Serial.println(F("********** Radio init done **********"));
 
+  
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+
+  // Clear the buffer.
+  display.clearDisplay();
+  display.display();
+  Serial.println(F("********** LCD init done **********"));
+
+
 /* 
  *  On some nRF24L chips, the AutoACK can cause issues. 
  *  Uncomment (on both transmitter & receiver) to workaround
@@ -88,10 +113,14 @@ void setup() {
     Serial.println(F("*******************************"));
     Serial.println(F("********** CONNECTED **********"));
     Serial.println(F("*******************************"));
+    simple_output("CONNECTED");
+
   }else {
     Serial.println(F("*******************************"));
     Serial.println(F(" connection failure with modem "));
     Serial.println(F("*******************************"));
+    simple_output("connection FAILURE");
+
   }
 
   
@@ -100,7 +129,6 @@ void setup() {
 
 
   Serial.println(F("********** Init done **********"));
-
 
 }
 
@@ -146,6 +174,10 @@ void loop() {
           Serial.print(F(", Round-trip delay "));
           Serial.print(end_time-start_time);
           Serial.println(F(" microseconds"));
+
+          char blabla[256]; 
+          sprintf(blabla, "value: %02.02f", got_time); 
+          simple_output(blabla);
       }
       // Try again 1s later
       delay(100);
@@ -181,13 +213,25 @@ void loop() {
       if ( c == 'T' && role == 0 ){      
         Serial.println(F("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK"));
         role = 1;                  // Become the primary transmitter (ping out)
+        simple_output("Transmission mode");
+
       
      }else
       if ( c == 'R' && role == 1 ){
         Serial.println(F("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK"));      
          role = 0;                // Become the primary receiver (pong back)
          radio.startListening();
+         simple_output("Reception mode");
          
       }
   }
 } // Loop
+
+void simple_output(char * string) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0,0);
+  display.println(string);
+  display.display();
+}
