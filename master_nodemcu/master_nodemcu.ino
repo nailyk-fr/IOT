@@ -19,18 +19,23 @@ void setup() {
 
 char value[64]; 
 
-unsigned long got_time = 127;
+float got_time;
 
 void loop() {
   /****************** Pong Back Role ***************************/
 
   rf24_read(&got_time);
-      
-  sprintf(value, "value: %i", got_time); 
 
   if ( WiFi.status() == WL_CONNECTED ) {
     ntp_client(); 
   }
+
+          char debug[64];
+          sprintf(debug, "%0.2f 'C", got_time); 
+                    Serial.print("received: ");
+
+          Serial.print(debug);
+          Serial.println();
 
   display.clearDisplay();
   lcd_ntp();

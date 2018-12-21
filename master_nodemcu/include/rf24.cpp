@@ -85,19 +85,29 @@ void setup_rf24(){
 /*******************************************
  *             setup_rf24
  *******************************************/
-void rf24_read(unsigned long * data) {
+void rf24_read(float * data) {
+          char debug[64];
+
    if (radio.isChipConnected()) {
     if( radio.available()){
                                                                     // Variable for the received timestamp
       while (radio.available()) {                                   // While there is data ready
-        radio.read( data, sizeof(unsigned long) );             // Get the payload
+        radio.read( data, sizeof(data) );            // Get the payload
+//          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
+          sprintf(debug, "%0.8f", *data); 
+          Serial.print("r: ");
+
+          Serial.print(debug);
+
       }
-      
+Serial.println(".");
+
+// ACK
+      unsigned long toto = 127;
       radio.stopListening();                                        // First, stop listening so we can talk   
-      radio.write( data, sizeof(unsigned long) );              // Send the final one back.      
+      radio.write( &toto, sizeof(toto) );              // Send the final one back.      
       radio.startListening();                                       // Now, resume listening so we catch the next packets.     
-      Serial.print(F("Sent response "));
-      Serial.println(*data);  
+      Serial.print(F("Sent done "));
     }
   }
 }
