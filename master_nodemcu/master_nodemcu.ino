@@ -2,7 +2,6 @@
 #include "include/lcd.cpp"
 
 
-
 void setup() {
 
   setup_rf24();
@@ -19,33 +18,29 @@ void setup() {
 
 char value[64]; 
 
-float got_time;
+RFDATA temp; 
+
 
 void loop() {
   /****************** Pong Back Role ***************************/
+RFDATA * temp_ptr = &temp;
 
-  rf24_read(&got_time);
+  rf24_read(temp_ptr);
 
   if ( WiFi.status() == WL_CONNECTED ) {
     ntp_client(); 
   }
 
-          char debug[64];
-          sprintf(debug, "%0.2f 'C", got_time); 
-                    Serial.print("received: ");
-
-          Serial.print(debug);
-          Serial.println();
 
   display.clearDisplay();
   lcd_ntp();
   lcd_wifi();
   lcd_modem();
-  sprintf(value, "value1: %02X", got_time); 
+  sprintf(value, "value1: %02X", temp.rffloat.value); 
   lcd_line1(value);
-  sprintf(value, "value2: %f", got_time); 
+  sprintf(value, "value2: %f", temp.rffloat.value); 
   lcd_line2(value);
-  sprintf(value, "value3: %0.2f °C", got_time); 
+  sprintf(value, "value3: %0.2f 'C", temp.rffloat.value); 
   lcd_line3(value);
 
   display.display();
@@ -62,5 +57,4 @@ void loop() {
     }
   }
 
-  delay(250); 
 } // Loop

@@ -42,12 +42,17 @@ enum DS18B20_RCODES {
 };
 /**********************************************************/
 
+#include "type.h"
+
 
 void setup() {
   digitalWrite(RSTPIN, HIGH);
   pinMode(RSTPIN, OUTPUT);
-  
+
   Serial.begin(115200);
+
+delay(5000); // wait 1s before sending. Should be enough to open serial. 
+  
   Serial.println(F("RF24/examples/GettingStarted"));
   Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
 
@@ -62,7 +67,7 @@ void setup() {
   radio.setDataRate(RF24_250KBPS);
   radio.setCRCLength(RF24_CRC_8);
   radio.setRetries(15, 15);
-  radio.setAutoAck(true);
+  radio.setAutoAck(false);
 
   // Set the PA Level low to prevent power supply related issues since this is a
   // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
@@ -105,75 +110,44 @@ void setup() {
   Serial.println(F("********** Init done **********"));
 
 
+
 }
 
 
 
 void loop() {
-      float temperature;
-
+      RFDATA temp;
+      temp.addr = 1; 
+      
       /* Lit la température ambiante à ~1Hz */
-      if (getTemperature(&temperature, true) != READ_OK) {
+      if (getTemperature(&temp.rffloat.value, true) != READ_OK) {
         Serial.println(F("Erreur de lecture du capteur"));
         return;
       }
       
       /* Affiche la température */
       Serial.print(F("Temperature : "));
-      Serial.print(temperature, 2);
+      Serial.print(temp.rffloat.value, 2);
       Serial.write(176); // Caractère degré
       Serial.write('C');
       Serial.println();
-/*
-      // construct RF data
-      data[0] = 1; 
-      memcpy(data+1, &temperature, (sizeof(data)/sizeof(data[0]) -1));
-  */    
-      radio.stopListening();                                    // First, stop listening so we can talk.
-      
-      
-      Serial.println(F("Now sending"));
-       if (!radio.write( &temperature, sizeof(temperature) )){
-         Serial.println(F("failed"));
-       }
-          
-      radio.startListening();                                    // Now, continue listening
-      
-      unsigned long started_waiting_at = micros();               // Set up a timeout period, get the current microseconds
-      boolean timeout = false;                                   // Set up a variable to indicate if a response was received or not
-      
-      while ( ! radio.available() ){                             // While nothing is received
-        if (micros() - started_waiting_at > 200000 ){            // If waited longer than 200ms, indicate timeout and exit while loop
-            timeout = true;
-            break;
-        }      
-      }
 
-// ACK
-      if ( timeout ){                                             // Describe the results
-          Serial.println(F("Failed, response timed out."));
-      }else{
-          unsigned long got_time;                                 // Grab the response, compare, and send to debugging spew
-          radio.read( &got_time, sizeof(unsigned long) );
-          unsigned long end_time = micros();
-          
-          // Spew it
-          Serial.print(F("Sent "));
-          char debug[64];
-//          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
-          sprintf(debug, "%0f", temperature); 
-          Serial.print(debug);
-          Serial.println();
-          Serial.print(F(", Got response "));
-          Serial.print(got_time);
-                    Serial.println();
+      char blabla[64];
+        sprintf(blabla, "value2: %f", (float)temp.rffloat.value); 
+
+      //sprintf(blabla,"Gonna send: %f-", temp.value);
+      Serial.print(blabla);
+      Serial.println(".");
 
 
-      }
-      // Try again 1s later
-      delay(1000);
+for (int i=0; i<5; i++)
+{
+ Serial.print(temp.rffloat.bytes[i], HEX); // Print the hex representation of the float
+ Serial.print(' ');
+}
+Serial.println(".");
 
-
+      send(temp);
 
   /****************** Change Roles via Serial Commands ***************************/
   if ( Serial.available() )
@@ -195,7 +169,66 @@ void loop() {
          
       }
   }
+
+
+      // Try again 1s later
+      delay(200);
+
+  
 } // Loop
+
+void send (RFDATA data) {
+
+      char tx_bytes[sizeof(data.addr) + sizeof(data.rffloat.bytes)];
+      memcpy(tx_bytes, data.addr, sizeof(data.addr)); 
+      memcpy(tx_bytes+sizeof(data.addr), data.rffloat.bytes, sizeof(data.rffloat.bytes));
+      radio.stopListening();                                    // First, stop listening so we can talk.
+      
+      
+      Serial.println(F("Now sending"));
+       if (!radio.write( tx_bytes, sizeof(tx_bytes))){
+         Serial.println(F("failed"));
+       } else {
+        Serial.print("Sent ");
+        Serial.print(sizeof(tx_bytes));
+        Serial.println(" bytes");
+       }
+          
+      radio.startListening();                                    // Now, continue listening
+      
+      unsigned long started_waiting_at = micros();               // Set up a timeout period, get the current microseconds
+      boolean timeout = false;                                   // Set up a variable to indicate if a response was received or not
+      
+      while ( ! radio.available() ){                             // While nothing is received
+        if (micros() - started_waiting_at > 800000 ){            // If waited longer than 200ms, indicate timeout and exit while loop
+            timeout = true;
+            break;
+        }      
+      }
+
+// ACK
+      if ( timeout ){                                             // Describe the results
+          Serial.println(F("Failed, response timed out."));
+      }else{
+          unsigned long got_time;                                 // Grab the response, compare, and send to debugging spew
+          radio.read( &got_time, sizeof(unsigned long) );
+          unsigned long end_time = micros();
+          
+          // Spew it
+          Serial.print(F("Sent "));
+          char debug[64];
+//          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
+          sprintf(debug, "%0f", data); 
+          Serial.print(debug);
+          Serial.println();
+          Serial.print(F(", Got response "));
+          Serial.print(got_time);
+                    Serial.println();
+
+
+      }
+  
+}
 
 void software_Reset() // Restarts program from beginning but does not reset the peripherals and registers
 {

@@ -11,6 +11,8 @@
 #include <RF24_config.h>
 #include <RF24.h>
 
+#include "../type.h"
+
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
@@ -53,7 +55,7 @@ void setup_rf24(){
   radio.setDataRate(RF24_250KBPS);
   radio.setCRCLength(RF24_CRC_8);
   radio.setRetries(15, 15);
-  radio.setAutoAck(true);
+  radio.setAutoAck(false);
 
   // Set the PA Level low to prevent power supply related issues since this is a
   // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
@@ -85,21 +87,28 @@ void setup_rf24(){
 /*******************************************
  *             setup_rf24
  *******************************************/
-void rf24_read(float * data) {
-          char debug[64];
+void rf24_read(RFDATA * data) {
+   char rx_bytes[sizeof(data->addr) + sizeof(data->rffloat.bytes)];
+
+   char debug[64];
 
    if (radio.isChipConnected()) {
     if( radio.available()){
                                                                     // Variable for the received timestamp
       while (radio.available()) {                                   // While there is data ready
-        radio.read( data, sizeof(data) );            // Get the payload
+        radio.read( rx_bytes, sizeof(rx_bytes) );            // Get the payload
+      }
+Serial.print("Readed ");
+Serial.print(sizeof(rx_bytes));
+Serial.println(" bytes.");
+	memcpy(& data->addr, rx_bytes, sizeof(data->addr));
+	memcpy(& data->rffloat.bytes, rx_bytes + sizeof(data->addr), sizeof(data->rffloat.bytes));
 //          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
-          sprintf(debug, "%0.8f", *data); 
+          sprintf(debug, "addr: %i , value: %0.8f", data->addr, data->rffloat.value); 
           Serial.print("r: ");
 
           Serial.print(debug);
 
-      }
 Serial.println(".");
 
 // ACK
