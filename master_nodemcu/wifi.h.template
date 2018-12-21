@@ -1,0 +1,4 @@
+// Copy to wifi.h and set correct values
+// set Wi-Fi SSID and password
+const char *ssid     = "DJAWEB";
+const char *password = "ABCdef0123456789uvwXYZ@*123*@";

@@ -8,8 +8,22 @@
 #define CSN_PIN 15
 
 
-#define SSD1306_128_64
+#define SSD1306_128_32
 
+// Libraries for internet time
+// NTP client: https://simple-circuit.com/nodemcu-internet-clock-weather-station/
+#include <WiFiUdp.h>
+#include <NTPClient.h>          // include NTPClient library
+#include <TimeLib.h>            // include Arduino time library
+ 
+// Libraries for internet weather
+#include <ESP8266HTTPClient.h>  // http web access library
+#include "wifi.h"
+
+// https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives#bitmaps-3-32
+// Image converter (awesome): http://javl.github.io/image2cpp/
+#include "include/logo_wifi.c"
+#include "include/logo_modem.c"
 
 #include <SPI.h>
 #include <Wire.h>
@@ -47,9 +61,11 @@ RF24 radio(CE_PIN, CSN_PIN);
 
 byte addresses[][6] = {"1Node","2Node"};
 
-// Used to control whether this node is sending or receiving
-bool role = 0;
-
+/******************** NTP ********************/
+WiFiUDP ntpUDP;
+// 'time.nist.gov' is used (default server) with +1 hour offset (3600 seconds) 60 seconds (60000 milliseconds) update interval
+NTPClient timeClient(ntpUDP, "time.nist.gov", 3600, 60000);
+ 
 
 void setup() {
   Serial.begin(115200);
@@ -108,132 +124,135 @@ void setup() {
   Serial.println(*addresses[radioNumber]);
 
 
-
-  if (radio.isChipConnected()) {
-    Serial.println(F("*******************************"));
-    Serial.println(F("********** CONNECTED **********"));
-    Serial.println(F("*******************************"));
-    simple_output("CONNECTED");
-
-  }else {
-    Serial.println(F("*******************************"));
-    Serial.println(F(" connection failure with modem "));
-    Serial.println(F("*******************************"));
-    simple_output("connection FAILURE");
-
-  }
-
   
   // Start the radio listening for data
   radio.startListening();
 
+  simple_output("almost done");
+
+  WiFi.begin(ssid, password);
+
+  timeClient.begin();
+
 
   Serial.println(F("********** Init done **********"));
+  simple_output("initialised! ");
 
 }
 
-
+char Time[] = "  :  :  ";
+char Date[] = "  -  -20  ";
+byte second_, minute_, hour_, wday, day_, month_, year_;
+char value[64]; 
 
 void loop() {
-  /****************** Ping Out Role ***************************/  
-  if (role == 1)  {
-      
-      radio.stopListening();                                    // First, stop listening so we can talk.
-      
-      
-      Serial.println(F("Now sending"));
-      unsigned long start_time = micros();                             // Take the time, and send it.  This will block until complete
-       if (!radio.write( &start_time, sizeof(unsigned long) )){
-         Serial.println(F("failed"));
-       }
-          
-      radio.startListening();                                    // Now, continue listening
-      
-      unsigned long started_waiting_at = micros();               // Set up a timeout period, get the current microseconds
-      boolean timeout = false;                                   // Set up a variable to indicate if a response was received or not
-      
-      while ( ! radio.available() ){                             // While nothing is received
-        if (micros() - started_waiting_at > 200000 ){            // If waited longer than 200ms, indicate timeout and exit while loop
-            timeout = true;
-            break;
-        }      
-      }
-          
-      if ( timeout ){                                             // Describe the results
-          Serial.println(F("Failed, response timed out."));
-      }else{
-          unsigned long got_time;                                 // Grab the response, compare, and send to debugging spew
-          radio.read( &got_time, sizeof(unsigned long) );
-          unsigned long end_time = micros();
-          
-          // Spew it
-          Serial.print(F("Sent "));
-          Serial.print(start_time);
-          Serial.print(F(", Got response "));
-          Serial.print(got_time);
-          Serial.print(F(", Round-trip delay "));
-          Serial.print(end_time-start_time);
-          Serial.println(F(" microseconds"));
-
-          char blabla[256]; 
-          sprintf(blabla, "value: %02.02f", got_time); 
-          simple_output(blabla);
-      }
-      // Try again 1s later
-      delay(100);
-  }
-
   /****************** Pong Back Role ***************************/
-  if ( role == 0 )
-  {
-      unsigned long got_time;
+  
+  unsigned long got_time;
+
+  if (radio.isChipConnected()) {
+    if( radio.available()){
+                                                                    // Variable for the received timestamp
+      while (radio.available()) {                                   // While there is data ready
+        radio.read( &got_time, sizeof(unsigned long) );             // Get the payload
+      }
       
-      if( radio.available()){
-                                                                      // Variable for the received timestamp
-        while (radio.available()) {                                   // While there is data ready
-          radio.read( &got_time, sizeof(unsigned long) );             // Get the payload
-        }
-       
-        radio.stopListening();                                        // First, stop listening so we can talk   
-        radio.write( &got_time, sizeof(unsigned long) );              // Send the final one back.      
-        radio.startListening();                                       // Now, resume listening so we catch the next packets.     
-        Serial.print(F("Sent response "));
-        Serial.println(got_time);  
-     }
+      radio.stopListening();                                        // First, stop listening so we can talk   
+      radio.write( &got_time, sizeof(unsigned long) );              // Send the final one back.      
+    
+      sprintf(value, "value: %i", got_time); 
+    
+      radio.startListening();                                       // Now, resume listening so we catch the next packets.     
+      Serial.print(F("Sent response "));
+      Serial.println(got_time);  
+    }
   }
+
+  if ( WiFi.status() == WL_CONNECTED ) {
+    ntp_client(); 
+  }
+
+  display.clearDisplay();
+  lcd_ntp();
+  lcd_wifi();
+  lcd_modem();
+  simple_output(value);
 
 
   /****************** Change Roles via Serial Commands ***************************/
   if ( Serial.available() )
   {
-      char c = toupper(Serial.read());
-      Serial.print(c);
-
-      
-      if ( c == 'T' && role == 0 ){      
-        Serial.println(F("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK"));
-        role = 1;                  // Become the primary transmitter (ping out)
-        simple_output("Transmission mode");
-
-      
-     }else
-      if ( c == 'R' && role == 1 ){
-        Serial.println(F("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK"));      
-         role = 0;                // Become the primary receiver (pong back)
-         radio.startListening();
-         simple_output("Reception mode");
-         
-      } else if (c == 'S') {
-         ESP.reset()
-      }
+    char c = toupper(Serial.read());
+    Serial.print(c);
+  
+    if (c == 'S') {
+       system_restart();
+    }
   }
+
+  delay(250); 
 } // Loop
 
 void simple_output(char * string) {
-  display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0,0);
+  display.setCursor(0,12);
   display.println(string);
   display.display();
+}
+
+void lcd_wifi() {
+  if ( WiFi.status() == WL_CONNECTED )
+  {
+    display.drawBitmap( 128-WIFILOGO_W, 0, WIFILOGO_OK, WIFILOGO_W, WIFILOGO_H, WHITE);
+  } else {
+    display.drawBitmap( 128-WIFILOGO_W, 0, WIFILOGO_ERR, WIFILOGO_W, WIFILOGO_H, WHITE);
+  }
+    display.display();
+}
+
+void lcd_modem() {
+  if (radio.isChipConnected()) {
+    display.drawBitmap( 0, 0, MODEM_OK, MODEMLOGO_W, MODEMLOGO_H, WHITE);
+  }else {
+    display.drawBitmap( 0, 0, WIFILOGO_ERR, WIFILOGO_W, WIFILOGO_H, WHITE);
+  }
+    display.display();
+}
+
+void lcd_ntp(){
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  
+  display.setCursor(0, 24);
+  display.print(Time);        // display time (format: hh:mm:ss)
+  display.setCursor(64, 24);
+  display.print(Date);        // display date (format: dd-mm-yyyy)
+  display.display();
+}
+
+void ntp_client(){
+  timeClient.update();
+  unsigned long unix_epoch = timeClient.getEpochTime();   // get UNIX Epoch time
+  
+  second_ = second(unix_epoch);        // get seconds from the UNIX Epoch time
+  minute_ = minute(unix_epoch);      // get minutes (0 - 59)
+  hour_   = hour(unix_epoch);        // get hours   (0 - 23)
+  wday    = weekday(unix_epoch);     // get minutes (1 - 7 with Sunday is day 1)
+  day_    = day(unix_epoch);         // get month day (1 - 31, depends on month)
+  month_  = month(unix_epoch);       // get month (1 - 12 with Jan is month 1)
+  year_   = year(unix_epoch) - 2000; // get year with 4 digits - 2000 results 2 digits year (ex: 2018 --> 18)
+  
+  Time[7] = second_ % 10 + '0';
+  Time[6] = second_ / 10 + '0';
+  Time[4] = minute_ % 10 + '0';
+  Time[3] = minute_ / 10 + '0';
+  Time[1] = hour_   % 10 + '0';
+  Time[0] = hour_   / 10 + '0';
+  Date[9] = year_   % 10 + '0';
+  Date[8] = year_   / 10 + '0';
+  Date[4] = month_  % 10 + '0';
+  Date[3] = month_  / 10 + '0';
+  Date[1] = day_    % 10 + '0';
+  Date[0] = day_    / 10 + '0';
 }
