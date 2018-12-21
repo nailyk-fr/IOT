@@ -5,6 +5,8 @@
 
 #define SSD1306_128_32
 
+#define LINE_HEIGHT 8
+
 // https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives#bitmaps-3-32
 // Image converter (awesome): http://javl.github.io/image2cpp/
 #include "logo_wifi.c"
@@ -35,10 +37,24 @@ void setup_lcd(){
   
 }
 
-void simple_output(char * string) {
+void lcd_line1(char * string) {
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0,18);
+  display.setCursor(0,0);
+  display.println(string);
+}
+
+void lcd_line2(char * string) {
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0,LINE_HEIGHT);
+  display.println(string);
+}
+
+void lcd_line3(char * string) {
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0,LINE_HEIGHT*2);
   display.println(string);
 }
 
@@ -54,9 +70,9 @@ void lcd_wifi() {
 
 void lcd_modem() {
   if (radio.isChipConnected()) {
-    display.drawBitmap( 0, 0, MODEM_OK, MODEMLOGO_W, MODEMLOGO_H, WHITE);
+    display.drawBitmap( 128-MODEMLOGO_W, 16, MODEM_OK, MODEMLOGO_W, MODEMLOGO_H, WHITE);
   }else {
-    display.drawBitmap( 0, 0, WIFILOGO_ERR, WIFILOGO_W, WIFILOGO_H, WHITE);
+    display.drawBitmap( 128-MODEMLOGO_W, 16, WIFILOGO_ERR, WIFILOGO_W, WIFILOGO_H, WHITE);
   }
 }
 
@@ -65,6 +81,6 @@ void lcd_ntp(){
   display.setTextColor(WHITE);
   display.setCursor(0, 24);
   display.print(Time);        // display time (format: hh:mm:ss)
-  display.setCursor(64, 24);
+  display.print(" ");        // display time (format: hh:mm:ss)
   display.print(Date);        // display date (format: dd-mm-yyyy)
 }
