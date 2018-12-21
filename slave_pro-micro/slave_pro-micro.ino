@@ -24,9 +24,23 @@ bool radioNumber = 1;
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
 /**********************************************************/
-
-
 byte addresses[][6] = {"1Node","2Node"};
+
+
+/**********************************************************/
+#define DS18B20PIN 7
+/* Dépendance pour le bus 1-Wire */
+#include <OneWire.h>
+/* Création de l'objet OneWire pour manipuler le bus 1-Wire */
+OneWire ds(DS18B20PIN);
+/* Code de retour de la fonction getTemperature() */
+enum DS18B20_RCODES {
+  READ_OK,  // Lecture ok
+  NO_SENSOR_FOUND,  // Pas de capteur
+  INVALID_ADDRESS,  // Adresse reçue invalide
+  INVALID_SENSOR  // Capteur invalide (pas un DS18B20)
+};
+/**********************************************************/
 
 
 void setup() {
@@ -85,6 +99,9 @@ void setup() {
   radio.startListening();
 
 
+
+
+
   Serial.println(F("********** Init done **********"));
 
 
@@ -93,14 +110,30 @@ void setup() {
 
 
 void loop() {
+      float temperature;
 
+      /* Lit la température ambiante à ~1Hz */
+      if (getTemperature(&temperature, true) != READ_OK) {
+        Serial.println(F("Erreur de lecture du capteur"));
+        return;
+      }
       
+      /* Affiche la température */
+      Serial.print(F("Temperature : "));
+      Serial.print(temperature, 2);
+      Serial.write(176); // Caractère degré
+      Serial.write('C');
+      Serial.println();
+/*
+      // construct RF data
+      data[0] = 1; 
+      memcpy(data+1, &temperature, (sizeof(data)/sizeof(data[0]) -1));
+  */    
       radio.stopListening();                                    // First, stop listening so we can talk.
       
       
       Serial.println(F("Now sending"));
-      unsigned long start_time = micros();                             // Take the time, and send it.  This will block until complete
-       if (!radio.write( &start_time, sizeof(unsigned long) )){
+       if (!radio.write( &temperature, sizeof(temperature) )){
          Serial.println(F("failed"));
        }
           
@@ -115,7 +148,8 @@ void loop() {
             break;
         }      
       }
-          
+
+// ACK
       if ( timeout ){                                             // Describe the results
           Serial.println(F("Failed, response timed out."));
       }else{
@@ -125,15 +159,20 @@ void loop() {
           
           // Spew it
           Serial.print(F("Sent "));
-          Serial.print(start_time);
+          char debug[64];
+//          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
+          sprintf(debug, "%0f", temperature); 
+          Serial.print(debug);
+          Serial.println();
           Serial.print(F(", Got response "));
           Serial.print(got_time);
-          Serial.print(F(", Round-trip delay "));
-          Serial.print(end_time-start_time);
-          Serial.println(F(" microseconds"));
+                    Serial.println();
+
+
       }
       // Try again 1s later
       delay(1000);
+
 
 
   /****************** Change Roles via Serial Commands ***************************/
@@ -162,3 +201,59 @@ void software_Reset() // Restarts program from beginning but does not reset the 
 {
      digitalWrite(RSTPIN, LOW);
 }  
+
+/**
+ * Fonction de lecture de la température via un capteur DS18B20.
+ */
+byte getTemperature(float *temperature, byte reset_search) {
+  byte data[9], addr[8];
+  // data[] : Données lues depuis le scratchpad
+  // addr[] : Adresse du module 1-Wire détecté
+  
+  /* Reset le bus 1-Wire ci nécessaire (requis pour la lecture du premier capteur) */
+  if (reset_search) {
+    ds.reset_search();
+  }
+ 
+  /* Recherche le prochain capteur 1-Wire disponible */
+  if (!ds.search(addr)) {
+    // Pas de capteur
+    return NO_SENSOR_FOUND;
+  }
+  
+  /* Vérifie que l'adresse a été correctement reçue */
+  if (OneWire::crc8(addr, 7) != addr[7]) {
+    // Adresse invalide
+    return INVALID_ADDRESS;
+  }
+ 
+  /* Vérifie qu'il s'agit bien d'un DS18B20 */
+  if (addr[0] != 0x28) {
+    // Mauvais type de capteur
+    return INVALID_SENSOR;
+  }
+ 
+  /* Reset le bus 1-Wire et sélectionne le capteur */
+  ds.reset();
+  ds.select(addr);
+  
+  /* Lance une prise de mesure de température et attend la fin de la mesure */
+  ds.write(0x44, 1);
+  delay(800);
+  
+  /* Reset le bus 1-Wire, sélectionne le capteur et envoie une demande de lecture du scratchpad */
+  ds.reset();
+  ds.select(addr);
+  ds.write(0xBE);
+ 
+ /* Lecture du scratchpad */
+  for (byte i = 0; i < 9; i++) {
+    data[i] = ds.read();
+  }
+   
+  /* Calcul de la température en degré Celsius */
+  *temperature = (int16_t) ((data[1] << 8) | data[0]) * 0.0625; 
+  
+  // Pas d'erreur
+  return READ_OK;
+}
