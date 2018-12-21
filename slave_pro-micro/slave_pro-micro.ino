@@ -29,10 +29,6 @@ RF24 radio(CE_PIN, CSN_PIN);
 byte addresses[][6] = {"1Node","2Node"};
 
 
-// Used to control whether this node is sending or receiving
-bool role = 1;
-
-
 void setup() {
   digitalWrite(RSTPIN, HIGH);
   pinMode(RSTPIN, OUTPUT);
@@ -97,8 +93,7 @@ void setup() {
 
 
 void loop() {
-  /****************** Ping Out Role ***************************/  
-  if (role == 1)  {
+
       
       radio.stopListening();                                    // First, stop listening so we can talk.
       
@@ -139,26 +134,6 @@ void loop() {
       }
       // Try again 1s later
       delay(1000);
-  }
-
-  /****************** Pong Back Role ***************************/
-  if ( role == 0 )
-  {
-      unsigned long got_time;
-      
-      if( radio.available()){
-                                                                      // Variable for the received timestamp
-        while (radio.available()) {                                   // While there is data ready
-          radio.read( &got_time, sizeof(unsigned long) );             // Get the payload
-        }
-       
-        radio.stopListening();                                        // First, stop listening so we can talk   
-        radio.write( &got_time, sizeof(unsigned long) );              // Send the final one back.      
-        radio.startListening();                                       // Now, resume listening so we catch the next packets.     
-        Serial.print(F("Sent response "));
-        Serial.println(got_time);  
-     }
-  }
 
 
   /****************** Change Roles via Serial Commands ***************************/
@@ -167,18 +142,7 @@ void loop() {
       char c = toupper(Serial.read());
       Serial.print(c);
 
-      
-      if ( c == 'T' && role == 0 ){      
-        Serial.println(F("*** CHANGING TO TRANSMIT ROLE -- PRESS 'R' TO SWITCH BACK"));
-        role = 1;                  // Become the primary transmitter (ping out)
-      
-     }else
-      if ( c == 'R' && role == 1 ){
-        Serial.println(F("*** CHANGING TO RECEIVE ROLE -- PRESS 'T' TO SWITCH BACK"));      
-         role = 0;                // Become the primary receiver (pong back)
-         radio.startListening();
-         
-      }
+
       if ( c == 'S'){
         Serial.println(F("*** resetting in ***"));      
         Serial.print(F("3..."));      
