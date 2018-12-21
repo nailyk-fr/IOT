@@ -64,7 +64,7 @@ byte addresses[][6] = {"1Node","2Node"};
 /******************** NTP ********************/
 WiFiUDP ntpUDP;
 // 'time.nist.gov' is used (default server) with +1 hour offset (3600 seconds) 60 seconds (60000 milliseconds) update interval
-NTPClient timeClient(ntpUDP, "time.nist.gov", 3600, 60000);
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 3600, 60000);
  
 
 void setup() {
@@ -90,7 +90,7 @@ void setup() {
 
   // Clear the buffer.
   display.clearDisplay();
-  display.display();
+  Wire.setClock(400000);
   Serial.println(F("********** LCD init done **********"));
 
 
@@ -145,6 +145,7 @@ char Date[] = "  -  -20  ";
 byte second_, minute_, hour_, wday, day_, month_, year_;
 char value[64]; 
 
+
 void loop() {
   /****************** Pong Back Role ***************************/
   
@@ -177,6 +178,7 @@ void loop() {
   lcd_wifi();
   lcd_modem();
   simple_output(value);
+  display.display();
 
 
   /****************** Change Roles via Serial Commands ***************************/
@@ -198,17 +200,16 @@ void simple_output(char * string) {
   display.setTextColor(WHITE);
   display.setCursor(0,12);
   display.println(string);
-  display.display();
 }
 
 void lcd_wifi() {
+  // arduino-1.8.8/libraries/WiFi/extras/wifiHD/src/wl_definitions.h:28
   if ( WiFi.status() == WL_CONNECTED )
   {
     display.drawBitmap( 128-WIFILOGO_W, 0, WIFILOGO_OK, WIFILOGO_W, WIFILOGO_H, WHITE);
   } else {
     display.drawBitmap( 128-WIFILOGO_W, 0, WIFILOGO_ERR, WIFILOGO_W, WIFILOGO_H, WHITE);
   }
-    display.display();
 }
 
 void lcd_modem() {
@@ -217,18 +218,15 @@ void lcd_modem() {
   }else {
     display.drawBitmap( 0, 0, WIFILOGO_ERR, WIFILOGO_W, WIFILOGO_H, WHITE);
   }
-    display.display();
 }
 
 void lcd_ntp(){
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  
   display.setCursor(0, 24);
   display.print(Time);        // display time (format: hh:mm:ss)
   display.setCursor(64, 24);
   display.print(Date);        // display date (format: dd-mm-yyyy)
-  display.display();
 }
 
 void ntp_client(){
