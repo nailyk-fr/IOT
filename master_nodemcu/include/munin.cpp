@@ -55,11 +55,8 @@ void munin_server() {
             char STemp[12];
 			if ( values[val] != NOSENSOR ) {
 				sprintf(STemp, "%f", values[val]);
-            } else {
-				sprintf(STemp, "");
+	            client.print(FS("temp") + (val + 1) + ".value " + STemp + "\n");
 			}
-            client.print(FS("temp") + (val + 1) + ".value " + STemp + "\n");
-
           }
           client.print(FS(".\n"));
           continue;
