@@ -1,5 +1,4 @@
 
-#include "include/lcd.cpp"
 
 // Number of max connected nodes
 #define MAXNODES 3
@@ -13,14 +12,17 @@
 // Used to store text to display on LCD & serial
 char value[256]; 
 
-// Transitional value to store nodes sensors
-RFDATA temp; 
-
 // Store each node sensors values
 float values[MAXNODES*2];
 
  // Count number of retries per nodes (sensors independant)
 unsigned char retries[MAXNODES]; 
+
+#include "include/lcd.cpp"
+
+// Transitional value to store nodes sensors
+RFDATA temp; 
+
 
 void setup() {
 
@@ -36,6 +38,8 @@ void setup() {
   
   std::fill_n(values, MAXNODES*2,NOSENSOR);
   std::fill_n(retries, MAXNODES, MAXRETRIES);
+
+  munin_setup();
 }
 
 
@@ -113,7 +117,13 @@ void loop() {
     if (c == 'S') {
        system_restart();
     }
+    if (c == 'I') {
+      Serial.print("IP: ");
+      Serial.println(WiFi.localIP());
+    }
   }
+
+  munin_server();
 
   delay(250);
 

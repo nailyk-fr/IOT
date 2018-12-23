@@ -11,6 +11,9 @@
 
 #include <ESP8266WiFi.h>
 
+// include munin server
+#include "munin.cpp"
+
 /******************** NTP ********************/
 WiFiUDP ntpUDP;
 // 'time.nist.gov' is used (default server) with +1 hour offset (3600 seconds) 60 seconds (60000 milliseconds) update interval
