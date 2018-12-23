@@ -13,17 +13,16 @@
 
 #include "../type.h"
 
+#define DUMMYVALUE 55
 
 /****************** User Config ***************************/
-/***      Set this radio as radio number 0 or 1         ***/
-bool radioNumber = 0;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
 /**********************************************************/
 
 
-byte addresses[][6] = {"1Node","2Node"};
+byte addresses[][6] = {"1Node","2Node","3Node","4Node"};
 
 
 /*******************************************
@@ -63,20 +62,12 @@ void setup_rf24(){
 
   
   // Open a writing and reading pipe on each radio, with opposite addresses
-  if(radioNumber){
-    radio.openWritingPipe(addresses[1]);
-    radio.openReadingPipe(1,addresses[0]);
-  }else{
-    radio.openWritingPipe(addresses[0]);
-    radio.openReadingPipe(1,addresses[1]);
-  }
+  radio.openWritingPipe(addresses[0]);
+  radio.openReadingPipe(1,addresses[1]);
+  radio.openReadingPipe(2,addresses[2]);
+  radio.openReadingPipe(3,addresses[3]);
 
 
-  Serial.print(F("adress set to "));
-  Serial.println(*addresses[radioNumber]);
-
-
-  
   // Start the radio listening for data
   radio.startListening();
 
@@ -87,36 +78,34 @@ void setup_rf24(){
 /*******************************************
  *             setup_rf24
  *******************************************/
-void rf24_read(RFDATA * data) {
+unsigned char rf24_read(RFDATA * data) {
+   uint8_t nodeNum = DUMMYVALUE; 
    char rx_bytes[sizeof(data->addr) + sizeof(data->rffloat.bytes)];
 
    char debug[64];
 
    if (radio.isChipConnected()) {
-    if( radio.available()){
-                                                                    // Variable for the received timestamp
-      while (radio.available()) {                                   // While there is data ready
-        radio.read( rx_bytes, sizeof(rx_bytes) );            // Get the payload
-      }
-Serial.print("Readed ");
-Serial.print(sizeof(rx_bytes));
-Serial.println(" bytes.");
-	memcpy(& data->addr, rx_bytes, sizeof(data->addr));
-	memcpy(& data->rffloat.bytes, rx_bytes + sizeof(data->addr), sizeof(data->rffloat.bytes));
-//          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
-          sprintf(debug, "addr: %i , value: %0.8f", data->addr, data->rffloat.value); 
-          Serial.print("r: ");
+      if( radio.available()){
+        while (radio.available(&nodeNum)) {                  // While there is data ready
+          radio.read( rx_bytes, sizeof(rx_bytes) );            // Get the payload
+        }
 
-          Serial.print(debug);
+        memcpy(& data->addr, rx_bytes, sizeof(data->addr));
+        memcpy(& data->rffloat.bytes, rx_bytes + sizeof(data->addr), sizeof(data->rffloat.bytes));
 
-Serial.println(".");
+        sprintf(debug, "Readed %i bytes from node %i -> addr: %i , value: %0.8f", 
+                       sizeof(rx_bytes), nodeNum, data->addr, data->rffloat.value); 
+        Serial.println(debug);
 
-// ACK
-      unsigned long toto = 127;
-      radio.stopListening();                                        // First, stop listening so we can talk   
-      radio.write( &toto, sizeof(toto) );              // Send the final one back.      
-      radio.startListening();                                       // Now, resume listening so we catch the next packets.     
-      Serial.print(F("Sent done "));
-    }
+
+       // ACK
+       unsigned long toto = DUMMYVALUE;
+       radio.stopListening();                                        // First, stop listening so we can talk   
+       radio.write( &toto, sizeof(toto) );              // Send the final one back.      
+       radio.startListening();                                       // Now, resume listening so we catch the next packets.     
+       Serial.println(F("Sent done "));
+     }
   }
+
+  return nodeNum;
 }
