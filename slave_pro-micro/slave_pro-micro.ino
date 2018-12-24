@@ -61,14 +61,15 @@ void setup() {
 
   Serial.println(F("********** Radio init done **********"));
 
-  radio.setDataRate(RF24_250KBPS);
-  radio.setCRCLength(RF24_CRC_8);
+  radio.setDataRate(RFSPEED);
+  radio.setCRCLength(CRCLENGTH);
   radio.setRetries(15, 15);
   radio.setAutoAck(ACKENABLED);
+  radio.setPayloadSize(PAYLOADSIZE);
 
   // Set the PA Level low to prevent power supply related issues since this is a
   // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
-  radio.setPALevel(RF24_PA_LOW);
+  radio.setPALevel(RFPOWER);
 
   // Open a writing and reading pipe on each radio, with opposite addresses
   radio.openWritingPipe(addresses[radioNumber]);

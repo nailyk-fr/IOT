@@ -22,6 +22,11 @@ byte addresses[][6] = {"1Node","2Node","3Node","4Node"};
 #define DUMMYVALUE 55
 
 // Enable or disable autoACK functionnalities on RF24
-#define ACKENABLED false
+#define ACKENABLED true
+
+#define CRCLENGTH RF24_CRC_16
+#define RFSPEED RF24_1MBPS
+#define RFPOWER RF24_PA_HIGH
+#define PAYLOADSIZE 8
 
 #endif //_RFCOMMON_H
