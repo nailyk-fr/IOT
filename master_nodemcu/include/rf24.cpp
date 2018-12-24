@@ -73,34 +73,38 @@ void setup_rf24(){
 /*******************************************
  *             setup_rf24
  *******************************************/
-unsigned char rf24_read(RFDATA * data) {
-   uint8_t nodeNum = DUMMYVALUE; 
+void rf24_read(RFDATA * data, uint8_t nodeNum) {
    char rx_bytes[sizeof(data->addr) + sizeof(data->rffloat.bytes)];
 
    char debug[64];
 
    if (radio.isChipConnected()) {
-      if( radio.available()){
+      if( radio.available(&nodeNum)){
         while (radio.available(&nodeNum)) {                  // While there is data ready
           radio.read( rx_bytes, sizeof(rx_bytes) );            // Get the payload
         }
 
-        memcpy(& data->addr, rx_bytes, sizeof(data->addr));
-        memcpy(& data->rffloat.bytes, rx_bytes + sizeof(data->addr), sizeof(data->rffloat.bytes));
+        memcpy(&data->addr, rx_bytes, sizeof(data->addr));
+        memcpy(&data->rffloat.bytes, rx_bytes + sizeof(data->addr), sizeof(data->rffloat.bytes));
 
-        sprintf(debug, "Readed %i bytes from node %i -> addr: %i , value: %0.8f", 
-                       sizeof(rx_bytes), nodeNum, data->addr, data->rffloat.value); 
+        sprintf(debug, "Readed %i bytes from node %i -> addr: %i(0x%x) , value: %0.8f", 
+                       sizeof(rx_bytes), nodeNum, data->addr, data->addr, data->rffloat.value); 
         Serial.println(debug);
 
+		// We are faster than arduinos, lets wait a bit
+		delay(10);
 
        // ACK
-       unsigned long toto = DUMMYVALUE;
+       unsigned long toto = nodeNum;
        radio.stopListening();                                        // First, stop listening so we can talk   
-       radio.write( &toto, sizeof(toto) );              // Send the final one back.      
-       radio.startListening();                                       // Now, resume listening so we catch the next packets.     
-       Serial.println(F("Sent done "));
-     }
+		bool send_ok = false; 
+       if ( radio.write(&toto, sizeof(toto)) ) { send_ok = true; }             // Send the final one back.
+       radio.startListening();                                       // Now, resume listening so we catch the next packets.
+		sprintf(debug, "Sent %i bytes %s to node %i", 
+				sizeof(toto), ( send_ok ? "ok" : "failed" ), nodeNum );
+       Serial.println(debug);
+     } else {
+		data->addr = DUMMYVALUE;
+	}
   }
-
-  return nodeNum;
 }

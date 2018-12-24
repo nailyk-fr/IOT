@@ -9,4 +9,3 @@ struct RFDATA {
     char addr;
     RFFLOAT rffloat;
 } ; 
-

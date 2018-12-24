@@ -43,15 +43,17 @@ void loop() {
     retries[i] = (retries[i]) +1;
 
     // Read data & retrieve node number
-    unsigned char num = rf24_read(temp_ptr) -1;
+    rf24_read(temp_ptr, i);
+    unsigned char node_addr = (int)(temp.addr/2);
+    unsigned char sens_addr = (int)(temp.addr%2);
 
     // if there was a receive, store it on the right position
-    if (num != (DUMMYVALUE-1)) {
-      values[num+(temp.addr)] = temp.rffloat.value;
-      retries[num] = 0; 
-      sprintf(value, "Node %i: %0.2f in [%i]", num, values[num+(temp.addr)], num+(temp.addr)); 
+    if (temp.addr != (DUMMYVALUE)) {
+      values[temp.addr] = temp.rffloat.value;
+      retries[node_addr] = 0; 
+      sprintf(value, "Node %i sens %i: %0.2f in [%i]", node_addr, sens_addr, values[temp.addr.value], temp.addr.value); 
       Serial.println(value);
-    }
+    } 
 
     // ensure retries counter does not loop
     if ( retries[i] > MAXRETRIES ) {

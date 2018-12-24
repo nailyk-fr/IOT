@@ -22,7 +22,7 @@
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
-bool radioNumber = 1;
+bool radioNumber = 2;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
@@ -75,8 +75,9 @@ void setup() {
   radio.openWritingPipe(addresses[radioNumber]);
   radio.openReadingPipe(1,addresses[0]);
 
-  Serial.print(F("adress set to "));
-  Serial.println(*addresses[radioNumber]);
+  char text[64];
+  sprintf(text, "adress set to %s", addresses[radioNumber]);
+  Serial.println(text);
 
 #ifdef DEBUG_RF
   if (radio.isChipConnected()) {
@@ -102,8 +103,11 @@ void setup() {
  * loop()
  ****************************************************/
 void loop() {
+
+
+  
       RFDATA temp;
-      temp.addr = 1; 
+      temp.addr = 0 + (radioNumber * 2); // Looks like there is an issue into the library to detect the pipe who sent the packets. Lets use the addr byte to worakround this.  
       
       /* Lit la température ambiante à ~1Hz */
       if (getTemperature(&temp.rffloat.value, true) != READ_OK) {
@@ -139,11 +143,9 @@ void loop() {
       }
   }
 
-
       // Try again 1s later
       delay(200);
 
-  
 } // Loop
 
 /*****************************************************
@@ -152,15 +154,18 @@ void loop() {
 void send (RFDATA data) {
       // Prepare a char array to copy values into to send them easily (mostly, getting rid of endianess issues)
       char tx_bytes[sizeof(data.addr) + sizeof(data.rffloat.bytes)];
-      memcpy(tx_bytes, data.addr, sizeof(data.addr)); 
+      memcpy(tx_bytes, data.addr, sizeof(data.addr)); // Looks like there is an issue into the library to detect the pipe who sent the packets. Lets use the addr byte to worakround this. 
       memcpy(tx_bytes+sizeof(data.addr), data.rffloat.bytes, sizeof(data.rffloat.bytes));
       radio.stopListening();                                    // First, stop listening so we can talk.
       
 #ifdef DEBUG_RF
-      Serial.println(F("Now sending"));
+      Serial.print(F("Sending... "));
 #endif
        if (!radio.write( tx_bytes, sizeof(tx_bytes))){
-         Serial.println(F("Send failed!"));
+#ifdef DEBUG_RF
+         Serial.print(sizeof(tx_bytes));
+         Serial.println(F(" bytes FAILED!"));
+#endif
        } else {
 #ifdef DEBUG_RF
         Serial.print("Sent ");
@@ -191,7 +196,7 @@ void send (RFDATA data) {
 #ifdef DEBUG_RF
           // Spew it
           char text[64];
-          sprintf(text, "Sent %i:%s, got response %lu on %i bytes", data.addr, f2s(data.rffloat.value,6), answer, sizeof(answer)); 
+          sprintf(text, "Sent %i(0x%x):%s, got response %lu on %i bytes", data.addr, data.addr, f2s(data.rffloat.value,6), answer, sizeof(answer)); 
           Serial.println(text);
 #endif
       }
