@@ -1,13 +1,4 @@
-
-
-// Number of max connected nodes
-#define MAXNODES 3
-
-// Number of retries per node before stopping displaying it (will still be queried)
-#define MAXRETRIES 10
-
-// value used to autodetect if a sensors is connected. This value needs to be something which will never happend
-#define NOSENSOR (-999) // needs to be a float, two decimal rounded
+#include "Common.h"      // Need to be included first as values are requiered by other includes
 
 // Used to store text to display on LCD & serial
 char value[256]; 

@@ -13,17 +13,11 @@
 
 #include "../type.h"
 
-#define DUMMYVALUE 55
-
 /****************** User Config ***************************/
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
 /**********************************************************/
-
-
-byte addresses[][6] = {"1Node","2Node","3Node","4Node"};
-
 
 /*******************************************
  *             setup_rf24
