@@ -21,4 +21,7 @@ byte addresses[][6] = {"1Node","2Node","3Node","4Node"};
 // Dummy value used for autodetect if a sensor is connected or not on the slave
 #define DUMMYVALUE 55
 
+// Enable or disable autoACK functionnalities on RF24
+#define ACKENABLED false
+
 #endif //_RFCOMMON_H
