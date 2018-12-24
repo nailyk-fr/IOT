@@ -185,12 +185,12 @@ void send (RFDATA data) {
           Serial.println(F("Timeout ACK from master."));
       }else{
           unsigned long answer;                                 // Grab the response, compare, and send to debugging spew
-          radio.read( &answer, sizeof(unsigned long) );
+          radio.read( &answer, sizeof(answer) );
           unsigned long end_time = micros();
 #ifdef DEBUG_RF
           // Spew it
           char text[64];
-          sprintf(text, "Sent %i:%s, got response %i", data.addr, f2s(data.rffloat.value,6), answer); 
+          sprintf(text, "Sent %i:%s, got response %lu on %i bytes", data.addr, f2s(data.rffloat.value,6), answer, sizeof(answer)); 
           Serial.println(text);
 #endif
       }
