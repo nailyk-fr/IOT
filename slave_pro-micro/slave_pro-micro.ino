@@ -22,7 +22,7 @@
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
-bool radioNumber = 2;
+byte radioNumber = 2;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
