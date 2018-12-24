@@ -112,18 +112,8 @@ void loop() {
       
       /* Affiche la température */
       char text[64];
-      sprintf(text, "value %i: %0.2f 'C", temp.addr, (float)temp.rffloat.value); 
-
+      sprintf(text, "value %i: %s 'C", temp.addr, f2s(temp.rffloat.value,2)); 
       Serial.println(text);
-
-#if defined(DEBUG_RF)
-      for (int i=0; i<5; i++)
-      {
-       Serial.print(temp.rffloat.bytes[i], HEX); // Print the hex representation of the float
-       Serial.print(' ');
-      }
-      Serial.println(".");
-#endif
 
       send(temp);
 
@@ -200,7 +190,7 @@ void send (RFDATA data) {
 #ifdef DEBUG_RF
           // Spew it
           char text[64];
-          sprintf(text, "Sent %i:%f, got response %i", data.addr, data.rffloat.value, answer); 
+          sprintf(text, "Sent %i:%s, got response %i", data.addr, f2s(data.rffloat.value,6), answer); 
           Serial.println(text);
 #endif
       }
@@ -265,4 +255,26 @@ byte getTemperature(float *temperature, byte reset_search) {
   
   // Pas d'erreur
   return READ_OK;
+}
+
+// %f output is NOT working on arduino. Use this workaround: 
+// https://github.com/esp8266/Arduino/issues/341
+/* float to string
+ * f is the float to turn into a string
+ * p is the precision (number of decimals)
+ * return a string representation of the float.
+ */
+char *f2s(float f, int p){
+  char * pBuff;                         // use to remember which part of the buffer to use for dtostrf
+  const int iSize = 10;                 // number of bufffers, one for each float before wrapping around
+  static char sBuff[iSize][20];         // space for 20 characters including NULL terminator for each float
+  static int iCount = 0;                // keep a tab of next place in sBuff to use
+  pBuff = sBuff[iCount];                // use this buffer
+  if(iCount >= iSize -1){               // check for wrap
+    iCount = 0;                         // if wrapping start again and reset
+  }
+  else{
+    iCount++;                           // advance the counter
+  }
+  return dtostrf(f, 0, p, pBuff);       // call the library function
 }
