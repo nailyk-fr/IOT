@@ -74,7 +74,7 @@ void setup_rf24(){
  *             setup_rf24
  *******************************************/
 void rf24_read(RFDATA * data, uint8_t nodeNum) {
-   char rx_bytes[sizeof(data->addr) + sizeof(data->rffloat.bytes)];
+   char rx_bytes[sizeof(data->addr.bytes) + sizeof(data->rffloat.bytes)];
 
    char debug[64];
 
@@ -84,11 +84,11 @@ void rf24_read(RFDATA * data, uint8_t nodeNum) {
           radio.read( rx_bytes, sizeof(rx_bytes) );            // Get the payload
         }
 
-        memcpy(&data->addr, rx_bytes, sizeof(data->addr));
-        memcpy(&data->rffloat.bytes, rx_bytes + sizeof(data->addr), sizeof(data->rffloat.bytes));
+        memcpy(&data->addr.bytes, rx_bytes, sizeof(data->addr.bytes));
+        memcpy(&data->rffloat.bytes, rx_bytes + sizeof(data->addr.bytes), sizeof(data->rffloat.bytes));
 
         sprintf(debug, "Readed %i bytes from node %i -> addr: %i(0x%x) , value: %0.8f", 
-                       sizeof(rx_bytes), nodeNum, data->addr, data->addr, data->rffloat.value); 
+                       sizeof(rx_bytes), nodeNum, data->addr.value, data->addr.value, data->rffloat.value); 
         Serial.println(debug);
 
 		// We are faster than arduinos, lets wait a bit
@@ -104,7 +104,7 @@ void rf24_read(RFDATA * data, uint8_t nodeNum) {
 				sizeof(toto), ( send_ok ? "ok" : "failed" ), nodeNum );
        Serial.println(debug);
      } else {
-		data->addr = DUMMYVALUE;
+		data->addr.value = DUMMYVALUE;
 	}
   }
 }

@@ -72,7 +72,7 @@ void setup() {
   radio.setPALevel(RFPOWER);
 
   // Open a writing and reading pipe on each radio, with opposite addresses
-  radio.openWritingPipe(addresses[radioNumber]);
+  radio.openWritingPipe(addresses[radioNumber+1]); // Shift one because it is already used by the master
   radio.openReadingPipe(1,addresses[0]);
 
   char text[64];
@@ -107,7 +107,7 @@ void loop() {
 
   
       RFDATA temp;
-      temp.addr = 0 + (radioNumber * 2); // Looks like there is an issue into the library to detect the pipe who sent the packets. Lets use the addr byte to worakround this.  
+      temp.addr.value = 0 + (radioNumber * 2); // Looks like there is an issue into the library to detect the pipe who sent the packets. Lets use the addr byte to worakround this.  
       
       /* Lit la température ambiante à ~1Hz */
       if (getTemperature(&temp.rffloat.value, true) != READ_OK) {
@@ -117,7 +117,7 @@ void loop() {
       
       /* Affiche la température */
       char text[64];
-      sprintf(text, "value %i: %s 'C", temp.addr, f2s(temp.rffloat.value,2)); 
+      sprintf(text, "value %i: %s 'C", temp.addr.value, f2s(temp.rffloat.value,2)); 
       Serial.println(text);
 
       send(temp);
@@ -153,9 +153,9 @@ void loop() {
  ****************************************************/
 void send (RFDATA data) {
       // Prepare a char array to copy values into to send them easily (mostly, getting rid of endianess issues)
-      char tx_bytes[sizeof(data.addr) + sizeof(data.rffloat.bytes)];
-      memcpy(tx_bytes, data.addr, sizeof(data.addr)); // Looks like there is an issue into the library to detect the pipe who sent the packets. Lets use the addr byte to worakround this. 
-      memcpy(tx_bytes+sizeof(data.addr), data.rffloat.bytes, sizeof(data.rffloat.bytes));
+      char tx_bytes[sizeof(data.addr.bytes) + sizeof(data.rffloat.bytes)];
+      memcpy(tx_bytes, data.addr.bytes, sizeof(data.addr.bytes)); // Looks like there is an issue into the library to detect the pipe who sent the packets. Lets use the addr byte to worakround this. 
+      memcpy(tx_bytes+sizeof(data.addr.bytes), data.rffloat.bytes, sizeof(data.rffloat.bytes));
       radio.stopListening();                                    // First, stop listening so we can talk.
       
 #ifdef DEBUG_RF
@@ -196,7 +196,7 @@ void send (RFDATA data) {
 #ifdef DEBUG_RF
           // Spew it
           char text[64];
-          sprintf(text, "Sent %i(0x%x):%s, got response %lu on %i bytes", data.addr, data.addr, f2s(data.rffloat.value,6), answer, sizeof(answer)); 
+          sprintf(text, "Sent %i(0x%x):%s, got response %lu on %i bytes", data.addr.value, data.addr.value, f2s(data.rffloat.value,6), answer, sizeof(answer)); 
           Serial.println(text);
 #endif
       }

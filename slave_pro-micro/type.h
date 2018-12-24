@@ -5,7 +5,13 @@ typedef union
   char bytes[5];
 } RFFLOAT;
 
+typedef union
+{
+  char value;
+  char bytes[1];  
+} RFADDR;
+
 struct RFDATA {
-    char addr;
+    RFADDR addr;
     RFFLOAT rffloat;
 } ; 
