@@ -1,10 +1,13 @@
 
 //#define FAILURE_HANDLING
 
+#include "Common.h"
 
 #define CE_PIN 9
 #define CSN_PIN 10
 #define RSTPIN 8
+
+#define DEBUG_RF // Uncomment to get some debug about nRF24L on serial
 
 /*
 * Getting Started example sketch for nRF24L01+ radios
@@ -24,7 +27,6 @@ bool radioNumber = 1;
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
 /**********************************************************/
-byte addresses[][6] = {"1Node","2Node"};
 
 
 /**********************************************************/
@@ -44,25 +46,20 @@ enum DS18B20_RCODES {
 
 #include "type.h"
 
-
+/*****************************************************
+ * setup()
+ ****************************************************/
 void setup() {
+  // Physical loop with reset to be able to remote restat the µc
   digitalWrite(RSTPIN, HIGH);
   pinMode(RSTPIN, OUTPUT);
 
   Serial.begin(115200);
-
-delay(5000); // wait 1s before sending. Should be enough to open serial. 
-  
-  Serial.println(F("RF24/examples/GettingStarted"));
-  Serial.println(F("*** PRESS 'T' to begin transmitting to the other node"));
-
-
+  delay(1000); // wait 1s before sending. Should be enough to open serial. 
   
   radio.begin();
 
   Serial.println(F("********** Radio init done **********"));
-
-
 
   radio.setDataRate(RF24_250KBPS);
   radio.setCRCLength(RF24_CRC_8);
@@ -73,22 +70,14 @@ delay(5000); // wait 1s before sending. Should be enough to open serial.
   // getting_started sketch, and the likelihood of close proximity of the devices. RF24_PA_MAX is default.
   radio.setPALevel(RF24_PA_LOW);
 
-  
   // Open a writing and reading pipe on each radio, with opposite addresses
-  if(radioNumber){
-    radio.openWritingPipe(addresses[1]);
-    radio.openReadingPipe(1,addresses[0]);
-  }else{
-    radio.openWritingPipe(addresses[0]);
-    radio.openReadingPipe(1,addresses[1]);
-  }
-
+  radio.openWritingPipe(addresses[radioNumber]);
+  radio.openReadingPipe(1,addresses[0]);
 
   Serial.print(F("adress set to "));
   Serial.println(*addresses[radioNumber]);
 
-
-
+#ifdef DEBUG_RF
   if (radio.isChipConnected()) {
     Serial.println(F("*******************************"));
     Serial.println(F("********** CONNECTED **********"));
@@ -98,23 +87,19 @@ delay(5000); // wait 1s before sending. Should be enough to open serial.
     Serial.println(F(" connection failure with modem "));
     Serial.println(F("*******************************"));
   }
-
+#endif
   
   // Start the radio listening for data
   radio.startListening();
 
 
-
-
-
   Serial.println(F("********** Init done **********"));
-
-
 
 }
 
-
-
+/*****************************************************
+ * loop()
+ ****************************************************/
 void loop() {
       RFDATA temp;
       temp.addr = 1; 
@@ -126,26 +111,19 @@ void loop() {
       }
       
       /* Affiche la température */
-      Serial.print(F("Temperature : "));
-      Serial.print(temp.rffloat.value, 2);
-      Serial.write(176); // Caractère degré
-      Serial.write('C');
-      Serial.println();
+      char text[64];
+      sprintf(text, "value %i: %0.2f 'C", temp.addr, (float)temp.rffloat.value); 
 
-      char blabla[64];
-        sprintf(blabla, "value2: %f", (float)temp.rffloat.value); 
+      Serial.println(text);
 
-      //sprintf(blabla,"Gonna send: %f-", temp.value);
-      Serial.print(blabla);
+#if defined(DEBUG_RF)
+      for (int i=0; i<5; i++)
+      {
+       Serial.print(temp.rffloat.bytes[i], HEX); // Print the hex representation of the float
+       Serial.print(' ');
+      }
       Serial.println(".");
-
-
-for (int i=0; i<5; i++)
-{
- Serial.print(temp.rffloat.bytes[i], HEX); // Print the hex representation of the float
- Serial.print(' ');
-}
-Serial.println(".");
+#endif
 
       send(temp);
 
@@ -177,21 +155,27 @@ Serial.println(".");
   
 } // Loop
 
+/*****************************************************
+ * send(RFDATA)
+ ****************************************************/
 void send (RFDATA data) {
-
+      // Prepare a char array to copy values into to send them easily (mostly, getting rid of endianess issues)
       char tx_bytes[sizeof(data.addr) + sizeof(data.rffloat.bytes)];
       memcpy(tx_bytes, data.addr, sizeof(data.addr)); 
       memcpy(tx_bytes+sizeof(data.addr), data.rffloat.bytes, sizeof(data.rffloat.bytes));
       radio.stopListening();                                    // First, stop listening so we can talk.
       
-      
+#ifdef DEBUG_RF
       Serial.println(F("Now sending"));
+#endif
        if (!radio.write( tx_bytes, sizeof(tx_bytes))){
-         Serial.println(F("failed"));
+         Serial.println(F("Send failed!"));
        } else {
+#ifdef DEBUG_RF
         Serial.print("Sent ");
         Serial.print(sizeof(tx_bytes));
         Serial.println(" bytes");
+#endif
        }
           
       radio.startListening();                                    // Now, continue listening
@@ -208,35 +192,27 @@ void send (RFDATA data) {
 
 // ACK
       if ( timeout ){                                             // Describe the results
-          Serial.println(F("Failed, response timed out."));
+          Serial.println(F("Timeout ACK from master."));
       }else{
-          unsigned long got_time;                                 // Grab the response, compare, and send to debugging spew
-          radio.read( &got_time, sizeof(unsigned long) );
+          unsigned long answer;                                 // Grab the response, compare, and send to debugging spew
+          radio.read( &answer, sizeof(unsigned long) );
           unsigned long end_time = micros();
-          
+#ifdef DEBUG_RF
           // Spew it
-          Serial.print(F("Sent "));
-          char debug[64];
-//          sprintf(debug, "%02X %02X %02X %02X %02X", data[0], data[1], data[2], data[3], data[4]); 
-          sprintf(debug, "%0f", data); 
-          Serial.print(debug);
-          Serial.println();
-          Serial.print(F(", Got response "));
-          Serial.print(got_time);
-                    Serial.println();
-
-
+          char text[64];
+          sprintf(text, "Sent %i:%f, got response %i", data.addr, data.rffloat.value, answer); 
+          Serial.println(text);
+#endif
       }
-  
 }
 
-void software_Reset() // Restarts program from beginning but does not reset the peripherals and registers
-{
+void software_Reset() { // Restarts program from beginning but does not reset the peripherals and registers
+     // Physical loop between RSTPIN and reset pin on the microcontroller. No need to pull-up. 
      digitalWrite(RSTPIN, LOW);
-}  
+}
 
 /**
- * Fonction de lecture de la température via un capteur DS18B20.
+ * Function to read the DS sensor
  */
 byte getTemperature(float *temperature, byte reset_search) {
   byte data[9], addr[8];
