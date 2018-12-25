@@ -44,7 +44,7 @@ void munin_server() {
             if ((int)values[val] != (int)NOSENSOR) {
               client.print(FS("temp") + (val + 1) + ".warning 30\n");
               client.print(FS("temp") + (val + 1) + ".critical 40\n");
-              client.print(FS("temp") + (val + 1) + ".label \n"); 
+              client.print(FS("temp") + (val + 1) + ".label temp" + (val + 1) + "\n"); 
             }
           }
           client.print(FS(".\n"));
