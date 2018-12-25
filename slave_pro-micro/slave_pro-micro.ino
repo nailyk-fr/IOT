@@ -7,6 +7,10 @@
 #define CSN_PIN 10
 #define RSTPIN 8
 
+// PINs where address is set
+#define ADDRPIN1 2
+#define ADDRPIN2 3
+
 #define DEBUG_RF // Uncomment to get some debug about nRF24L on serial
 
 /*
@@ -22,7 +26,7 @@
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
-byte radioNumber = 2;
+byte radioNumber;
 
 /* Hardware configuration: Set up nRF24L01 radio on SPI bus plus pins 7 & 8 */
 RF24 radio(CE_PIN, CSN_PIN);
@@ -54,6 +58,8 @@ void setup() {
   digitalWrite(RSTPIN, HIGH);
   pinMode(RSTPIN, OUTPUT);
 
+  radioNumber = get_addr();
+
   Serial.begin(115200);
   delay(1000); // wait 1s before sending. Should be enough to open serial. 
   
@@ -72,11 +78,11 @@ void setup() {
   radio.setPALevel(RFPOWER);
 
   // Open a writing and reading pipe on each radio, with opposite addresses
-  radio.openWritingPipe(addresses[radioNumber+1]); // Shift one because it is already used by the master
+  radio.openWritingPipe(addresses[radioNumber+1]); // Shift one because 1 is already used by master
   radio.openReadingPipe(1,addresses[0]);
 
   char text[64];
-  sprintf(text, "adress set to %s", addresses[radioNumber]);
+  sprintf(text, "adress set to %s", addresses[radioNumber+1]);
   Serial.println(text);
 
 #ifdef DEBUG_RF
@@ -261,6 +267,19 @@ byte getTemperature(float *temperature, byte reset_search) {
   
   // Pas d'erreur
   return READ_OK;
+}
+
+/*****************************************************
+ * byte get_addr()
+ *     use physicals PINs to shift into address[]
+ ****************************************************/
+byte get_addr(){
+  bool bit1,bit2,bit3;
+  pinMode(ADDRPIN1, INPUT);
+  pinMode(ADDRPIN2, INPUT);
+  bit1 = digitalRead(ADDRPIN1);
+  bit2 = digitalRead(ADDRPIN1);
+  return (bit3*4 + bit2*2 + bit1);
 }
 
 // %f output is NOT working on arduino. Use this workaround: 
