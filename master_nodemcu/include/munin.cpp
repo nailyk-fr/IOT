@@ -22,11 +22,24 @@ void munin_server() {
    WiFiClient client = server.available();
    if (client) {
 	 client.print(FS("# munin node at ") + nodename + '\n');
+     // store time to enable timeout detect
+     unsigned long started_waiting_at = micros();
+
      while (client.connected()) {
+      if (micros() - started_waiting_at > 5000000 ){
+        // timeout at 5 sec (5 000 000µs)
+         Serial.println("Client timed out after 5sec");
+         client.stop();
+         break;
+
+      }
+
       if (client.available()) {
         Serial.println("readString...");
         String command = client.readString();
         Serial.println(command);
+        // A command has been received, reinit timeout counter
+        started_waiting_at = micros();
         if (command.startsWith(FS("quit"))) break;
         if (command.startsWith(FS("version"))) {
           client.print(FS("munin node on ") + nodename + FS(" version: 1.0.0\n"));
