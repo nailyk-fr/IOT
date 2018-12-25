@@ -13,6 +13,9 @@
 
 #define DEBUG_RF // Uncomment to get some debug about nRF24L on serial
 
+// Uncomment to enable groove temperature sensor reading
+#define GROOVESENS A0     // Grove - Temperature Sensor connect to A0
+
 /*
 * Getting Started example sketch for nRF24L01+ radios
 * This is a very basic example of how to send data from one node to another
@@ -49,6 +52,14 @@ enum DS18B20_RCODES {
 /**********************************************************/
 
 #include "type.h"
+
+
+/**********************************************************/
+/****************** groove temperature ********************/
+#ifdef GROOVESENS
+ #define B 4275               // B value of the thermistor
+ #define R0 100000            // R0 = 100k
+#endif
 
 /*****************************************************
  * setup()
@@ -109,7 +120,8 @@ void setup() {
  * loop()
  ****************************************************/
 void loop() {
-
+      // char array to display output on serial
+      char text[64];
 
   
       RFDATA temp;
@@ -122,11 +134,17 @@ void loop() {
       }
       
       /* Affiche la température */
-      char text[64];
       sprintf(text, "value %i: %s 'C", temp.addr.value, f2s(temp.rffloat.value,2)); 
       Serial.println(text);
 
       send(temp);
+
+#ifdef GROOVESENS
+      temp.addr.value = 1 + (radioNumber * 2);
+      temp.rffloat.value = groove_read();
+      sprintf(text, "groove %i: %s 'C", temp.addr.value, f2s(temp.rffloat.value,2)); 
+      send(temp);
+#endif
 
   /****************** Change Roles via Serial Commands ***************************/
   if ( Serial.available() )
@@ -281,6 +299,23 @@ byte get_addr(){
   bit2 = digitalRead(ADDRPIN1);
   return (bit3*4 + bit2*2 + bit1);
 }
+
+/*****************************************************
+ * byte get_addr()
+ *     use physicals PINs to shift into address[]
+ ****************************************************/
+#ifdef GROOVESENS
+float groove_read(){
+  int a = analogRead(GROOVESENS);
+
+  float R = 1023.0/a-1.0;
+  R = R0*R;
+
+  float temperature = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to temperature via datasheet
+
+  return temperature;
+}
+#endif
 
 // %f output is NOT working on arduino. Use this workaround: 
 // https://github.com/esp8266/Arduino/issues/341
